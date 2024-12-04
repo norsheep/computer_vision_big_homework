@@ -1,2 +1,3 @@
-# computer_vision_big_homework
+# computer_vision_project
 你好！
+こんにちは！
