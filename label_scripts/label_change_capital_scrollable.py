@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import os
 
+# Change all capital letters to lowercase and change "X_scrollable" to "scrollable"
 for dirpath, subdirname, subfilename in os.walk("dataset_fixed_capital_scrollable"):
     if subdirname == []:
         for subfile in subfilename:

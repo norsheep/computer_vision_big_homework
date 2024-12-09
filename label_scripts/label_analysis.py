@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import os
 
+# Count the number of each label in the dataset
 all_possible = set()
 label_counter = dict()
 for dirpath, subdirname, subfilename in os.walk("dataset_fixed_capital_scrollable"):

@@ -76,7 +76,8 @@ def merge_boxes_and_texts(texts, boxes, iou_threshold=0):
     merged_texts = []
 
     while len(boxes) > 0:
-        box = boxes[0]
+        # 每次更新boxes和texts，只合并第一个，判断方式为iou_threshold
+        box = boxes[0] 
         text = texts[0]
         boxes = boxes[1:]
         texts = texts[1:]
@@ -85,6 +86,7 @@ def merge_boxes_and_texts(texts, boxes, iou_threshold=0):
         keep_boxes = []
         keep_texts = []
 
+        # 其他没合并的boxes（index与text始终对其）
         for i, other_box in enumerate(boxes):
             if compute_iou(box, other_box) > iou_threshold:
                 to_merge_boxes.append(other_box)
@@ -93,7 +95,7 @@ def merge_boxes_and_texts(texts, boxes, iou_threshold=0):
                 keep_boxes.append(other_box)
                 keep_texts.append(texts[i])
 
-        # Merge the to_merge boxes into a single box
+        # Merge the to_merge boxes into a single box（一堆相近的）
         if len(to_merge_boxes) > 1:
             x1 = min(b[0] for b in to_merge_boxes)
             y1 = min(b[1] for b in to_merge_boxes)
@@ -115,6 +117,7 @@ def merge_boxes_and_texts(texts, boxes, iou_threshold=0):
 
 
 def is_contained(bbox1, bbox2):
+    # 检查两个是否是互相包含关系
     x1_min, y1_min, x1_max, y1_max = bbox1
     x2_min, y2_min, x2_max, y2_max = bbox2
 
@@ -126,7 +129,8 @@ def is_contained(bbox1, bbox2):
 
 
 def is_overlapping(bbox1, bbox2):
-    x1_min, y1_min, x1_max, y1_max = bbox1
+    # 检查两个是否有重叠
+    x1_min, y1_min, x1_max, y1_max = bbox1 # 左下，右上
     x2_min, y2_min, x2_max, y2_max = bbox2
 
     inter_xmin = max(x1_min, x2_min)
@@ -134,6 +138,7 @@ def is_overlapping(bbox1, bbox2):
     inter_xmax = min(x1_max, x2_max)
     inter_ymax = min(y1_max, y2_max)
 
+    # 说明有重叠
     if inter_xmin < inter_xmax and inter_ymin < inter_ymax:
         return True
     return False
@@ -147,15 +152,19 @@ def get_area(bbox):
 def merge_all_icon_boxes(bboxes):
     result_bboxes = []
     while bboxes:
-        bbox = bboxes.pop(0)
+        bbox = bboxes.pop(0) 
         to_add = True
 
+        # 决定是否保留
         for idx, existing_bbox in enumerate(result_bboxes):
+            # 如果与已有的bbox有包含关系，不添加
             if is_contained(bbox, existing_bbox):
                 if get_area(bbox) > get_area(existing_bbox):
+                    # ？？？？？？？？不应该留小的，bbox吗？existing_bbox本来就在啊
                     result_bboxes[idx] = existing_bbox
                 to_add = False
                 break
+            # 如果有重叠，更换为更小的，不新添加（？？？为啥重叠也这么干？不比较iou吗？？？）
             elif is_overlapping(bbox, existing_bbox):
                 if get_area(bbox) < get_area(existing_bbox):
                     result_bboxes[idx] = bbox
@@ -171,6 +180,7 @@ def merge_all_icon_boxes(bboxes):
 
 
 def merge_bbox_groups(A, B, iou_threshold=0.8):
+    # Merge two groups of bounding boxes based on IoU threshold
     i = 0
     while i < len(A):
         box_a = A[i]
@@ -206,6 +216,7 @@ def bbox_iou(boxA, boxB):
 
 
 def merge_boxes_and_texts_new(texts, bounding_boxes, iou_threshold=0):
+    # Merge bounding boxes and their corresponding texts based on IoU threshold
     if not bounding_boxes:
         return [], []
 
@@ -222,13 +233,13 @@ def merge_boxes_and_texts_new(texts, bounding_boxes, iou_threshold=0):
         # text = texts[i]
         text = ''
 
-        overlapping_indices = [i] # []
+        overlapping_indices = [i] # list of indices of overlapping boxes of i (current box)
         for j, boxB in enumerate(bounding_boxes):
             # print(i,j, bbox_iou(boxA, boxB))
             if i != j and not used[j] and bbox_iou(boxA, boxB) > iou_threshold:
                 overlapping_indices.append(j)
 
-        # Sort overlapping boxes by vertical position (top to bottom)
+        # Sort overlapping boxes by vertical position (top to bottom) 基于某规则排序index
         overlapping_indices.sort(key=lambda idx: (bounding_boxes[idx][1] + bounding_boxes[idx][3])/2) # TODO
 
         for idx in overlapping_indices:
@@ -239,10 +250,10 @@ def merge_boxes_and_texts_new(texts, bounding_boxes, iou_threshold=0):
             y_max = max(y_max, boxB[3])
             # text += " " + texts[idx]
             text += texts[idx]
-            used[idx] = True
+            used[idx] = True  # 标记已经处理过，和i相似的那些
 
-        merged_boxes.append([x_min, y_min, x_max, y_max])
+        merged_boxes.append([x_min, y_min, x_max, y_max])  # 所有相似的选面积最大的合并
         merged_texts.append(text)
-        used[i] = True
+        used[i] = True  # 标记已经处理过i
 
     return merged_texts, merged_boxes

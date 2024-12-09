@@ -3,14 +3,19 @@ from modelscope.pipelines import pipeline
 from PIL import Image
 import torch
 
+
+# 可考虑更改，删了太多了
 def remove_boxes(boxes_filt, size, iou_threshold=0.5):
+    # Remove boxes that are too large or have high IoU with other boxes
     boxes_to_remove = set()
 
     for i in range(len(boxes_filt)):
-        if calculate_size(boxes_filt[i]) > 0.05*size[0]*size[1]:
+        # Remove boxes that are too large
+        if calculate_size(boxes_filt[i]) > 0.05 * size[0] * size[1]:
             boxes_to_remove.add(i)
         for j in range(len(boxes_filt)):
-            if calculate_size(boxes_filt[j]) > 0.05*size[0]*size[1]:
+            # Remove boxes with high IoU
+            if calculate_size(boxes_filt[j]) > 0.05 * size[0] * size[1]:
                 boxes_to_remove.add(j)
             if i == j:
                 continue
@@ -18,22 +23,31 @@ def remove_boxes(boxes_filt, size, iou_threshold=0.5):
                 continue
             iou = calculate_iou(boxes_filt[i], boxes_filt[j])
             if iou >= iou_threshold:
+                # 在i已经删掉的情况下，如果iou大于阈值，j也要删掉（即使j不大，离谱）
                 boxes_to_remove.add(j)
 
-    boxes_filt = [box for idx, box in enumerate(boxes_filt) if idx not in boxes_to_remove]
-    
+    # 留下不删的
+    boxes_filt = [
+        box for idx, box in enumerate(boxes_filt) if idx not in boxes_to_remove
+    ]
+
     return boxes_filt
 
 
-def det(input_image_path, caption, groundingdino_model, box_threshold=0.05, text_threshold=0.5):
+def det(input_image_path,
+        caption,
+        groundingdino_model,
+        box_threshold=0.05,
+        text_threshold=0.5):
+    # 检查图片中是否有指定的物体(input)，返回坐标
     image = Image.open(input_image_path)
-    size = image.size
+    size = image.size  # (W, H)
 
     caption = caption.lower()
     caption = caption.strip()
     if not caption.endswith('.'):
         caption = caption + '.'
-    
+
     inputs = {
         'IMAGE_PATH': input_image_path,
         'TEXT_PROMPT': caption,
@@ -41,11 +55,13 @@ def det(input_image_path, caption, groundingdino_model, box_threshold=0.05, text
         'TEXT_TRESHOLD': text_threshold
     }
 
-    result = groundingdino_model(inputs)
+    result = groundingdino_model(
+        inputs)  # {'boxes': tensor([[x1, y1, x2, y2], ...])}
     boxes_filt = result['boxes']
 
     H, W = size[1], size[0]
     for i in range(boxes_filt.size(0)):
+        # Convert normalized coordinates to pixel coordinates
         boxes_filt[i] = boxes_filt[i] * torch.Tensor([W, H, W, H])
         boxes_filt[i][:2] -= boxes_filt[i][2:] / 2
         boxes_filt[i][2:] += boxes_filt[i][:2]
